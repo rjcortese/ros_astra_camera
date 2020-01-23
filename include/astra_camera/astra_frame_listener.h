@@ -37,6 +37,9 @@
 
 #include <sensor_msgs/msg/image.hpp>
 
+/*rjc*/
+#include <memory>
+/*end rjc*/
 #include <vector>
 
 #include "openni2/OpenNI.h"
@@ -69,7 +72,10 @@ private:
   FrameCallbackFunction callback_;
 
   bool user_device_timer_;
-  boost::shared_ptr<AstraTimerFilter> timer_filter_;
+  /*rjc*/
+  /* boost::shared_ptr<AstraTimerFilter> timer_filter_; */
+  std::shared_ptr<AstraTimerFilter> timer_filter_;
+  /*end rjc*/
 
   double prev_time_stamp_;
 };

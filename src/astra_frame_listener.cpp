@@ -43,131 +43,125 @@
 namespace astra_wrapper
 {
 
-AstraFrameListener::AstraFrameListener() :
-    callback_(0),
-    user_device_timer_(false),
-    timer_filter_(new AstraTimerFilter(TIME_FILTER_LENGTH)),
-    prev_time_stamp_(0.0)
-{
-  //ros::Time::init();
-}
-
-void AstraFrameListener::setUseDeviceTimer(bool enable)
-{
-  user_device_timer_ = enable;
-
-  if (user_device_timer_)
-    timer_filter_->clear();
-}
-
-void AstraFrameListener::onNewFrame(openni::VideoStream& stream)
-{
-  stream.readFrame(&m_frame);
-
-  if (m_frame.isValid() && callback_)
-  {
-    sensor_msgs::msg::Image::SharedPtr image(new sensor_msgs::msg::Image);
-
-    //ros::Time ros_now = ros::Time::now();
-    rcutils_time_point_value_t ros_now;
-    if (rcutils_system_time_now(&ros_now) != RCUTILS_RET_OK)
+    AstraFrameListener::AstraFrameListener() :
+        callback_(0),
+        user_device_timer_(false),
+        timer_filter_(new AstraTimerFilter(TIME_FILTER_LENGTH)),
+        prev_time_stamp_(0.0)
     {
-      ROS_ERROR("Failed to get current time; ignoring frame");
-      return;
+        //ros::Time::init();
     }
 
-    if (!user_device_timer_)
+    void AstraFrameListener::setUseDeviceTimer(bool enable)
     {
-      //image->header.stamp = ros_now;
-      image->header.stamp.sec = ros_now / 1000000000;
-      image->header.stamp.nanosec = ros_now - image->header.stamp.sec * 1000000000;
+        user_device_timer_ = enable;
 
-      //ROS_DEBUG("Time interval between frames: %.4f ms", (float)((ros_now.toSec()-prev_time_stamp_)*1000.0));
-      ROS_DEBUG("Time interval between frames: %.4f ms", (float)((ros_now/1000000000-prev_time_stamp_)*1000.0));
-
-      //prev_time_stamp_ = ros_now.toSec();
-      prev_time_stamp_ = ros_now/1000000000;
-    } else
-    {
-      uint64_t device_time = m_frame.getTimestamp();
-
-      double device_time_in_sec = static_cast<double>(device_time)/1000000.0;
-      //double ros_time_in_sec = ros_now.toSec();
-      double ros_time_in_sec = ros_now/1000000000;
-
-      double time_diff = ros_time_in_sec-device_time_in_sec;
-
-      timer_filter_->addSample(time_diff);
-
-      double filtered_time_diff = timer_filter_->getMedian();
-
-      double corrected_timestamp = device_time_in_sec+filtered_time_diff;
-
-      //image->header.stamp.fromSec(corrected_timestamp);
-      image->header.stamp.sec = std::floor(corrected_timestamp);
-      image->header.stamp.nanosec = (corrected_timestamp - floor(corrected_timestamp)) * 1000000000;
-
-      ROS_DEBUG("Time interval between frames: %.4f ms", (float)((corrected_timestamp-prev_time_stamp_)*1000.0));
-
-      prev_time_stamp_ = corrected_timestamp;
+        if (user_device_timer_)
+            timer_filter_->clear();
     }
 
-    image->width = m_frame.getWidth();
-    image->height = m_frame.getHeight();
-
-    std::size_t data_size = m_frame.getDataSize();
-
-    image->data.resize(data_size);
-    memcpy(&image->data[0], m_frame.getData(), data_size);
-
-    image->is_bigendian = 0;
-
-    const openni::VideoMode& video_mode = m_frame.getVideoMode();
-    switch (video_mode.getPixelFormat())
+    void AstraFrameListener::onNewFrame(openni::VideoStream& stream)
     {
-      case openni::PIXEL_FORMAT_DEPTH_1_MM:
-        image->encoding = sensor_msgs::image_encodings::TYPE_16UC1;
-        image->step = sizeof(unsigned char) * 2 * image->width;
-        break;
-      case openni::PIXEL_FORMAT_DEPTH_100_UM:
-        image->encoding = sensor_msgs::image_encodings::TYPE_16UC1;
-        image->step = sizeof(unsigned char) * 2 * image->width;
-        break;
-      case openni::PIXEL_FORMAT_SHIFT_9_2:
-        image->encoding = sensor_msgs::image_encodings::TYPE_16UC1;
-        image->step = sizeof(unsigned char) * 2 * image->width;
-        break;
-      case openni::PIXEL_FORMAT_SHIFT_9_3:
-        image->encoding = sensor_msgs::image_encodings::TYPE_16UC1;
-        image->step = sizeof(unsigned char) * 2 * image->width;
-        break;
+        stream.readFrame(&m_frame);
 
-      case openni::PIXEL_FORMAT_RGB888:
-        image->encoding = sensor_msgs::image_encodings::RGB8;
-        image->step = sizeof(unsigned char) * 3 * image->width;
-        break;
-      case openni::PIXEL_FORMAT_YUV422:
-        image->encoding = sensor_msgs::image_encodings::YUV422;
-        image->step = sizeof(unsigned char) * 4 * image->width;
-        break;
-      case openni::PIXEL_FORMAT_GRAY8:
-        image->encoding = sensor_msgs::image_encodings::MONO8;
-        image->step = sizeof(unsigned char) * 1 * image->width;
-        break;
-      case openni::PIXEL_FORMAT_GRAY16:
-        image->encoding = sensor_msgs::image_encodings::MONO16;
-        image->step = sizeof(unsigned char) * 2 * image->width;
-        break;
-      case openni::PIXEL_FORMAT_JPEG:
-      default:
-        ROS_ERROR("Invalid image encoding");
-        break;
+        if (m_frame.isValid() && callback_)
+        {
+            sensor_msgs::msg::Image::SharedPtr image(new sensor_msgs::msg::Image);
+
+            rcutils_time_point_value_t ros_now;
+            if (rcutils_system_time_now(&ros_now) != RCUTILS_RET_OK)
+            {
+                ROS_ERROR("Failed to get current time; ignoring frame");
+                return;
+            }
+
+            if (!user_device_timer_)
+            {
+                image->header.stamp.sec = ros_now / 1000000000;
+                image->header.stamp.nanosec = ros_now - image->header.stamp.sec * 1000000000;
+
+                ROS_DEBUG("Time interval between frames: %.4f ms", (float)((ros_now/1000000000-prev_time_stamp_)*1000.0));
+
+                prev_time_stamp_ = ros_now/1000000000;
+            } else
+            {
+                uint64_t device_time = m_frame.getTimestamp();
+
+                double device_time_in_sec = static_cast<double>(device_time)/1000000.0;
+                double ros_time_in_sec = ros_now/1000000000;
+
+                double time_diff = ros_time_in_sec-device_time_in_sec;
+
+                timer_filter_->addSample(time_diff);
+
+                double filtered_time_diff = timer_filter_->getMedian();
+
+                double corrected_timestamp = device_time_in_sec+filtered_time_diff;
+
+                image->header.stamp.sec = std::floor(corrected_timestamp);
+                image->header.stamp.nanosec = (corrected_timestamp - floor(corrected_timestamp)) * 1000000000;
+
+                ROS_DEBUG("Time interval between frames: %.4f ms", (float)((corrected_timestamp-prev_time_stamp_)*1000.0));
+
+                prev_time_stamp_ = corrected_timestamp;
+            }
+
+            image->width = m_frame.getWidth();
+            image->height = m_frame.getHeight();
+
+            std::size_t data_size = m_frame.getDataSize();
+
+            image->data.resize(data_size);
+            memcpy(&image->data[0], m_frame.getData(), data_size);
+
+            image->is_bigendian = 0;
+
+            const openni::VideoMode& video_mode = m_frame.getVideoMode();
+            switch (video_mode.getPixelFormat())
+            {
+                case openni::PIXEL_FORMAT_DEPTH_1_MM:
+                    image->encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+                    image->step = sizeof(unsigned char) * 2 * image->width;
+                    break;
+                case openni::PIXEL_FORMAT_DEPTH_100_UM:
+                    image->encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+                    image->step = sizeof(unsigned char) * 2 * image->width;
+                    break;
+                case openni::PIXEL_FORMAT_SHIFT_9_2:
+                    image->encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+                    image->step = sizeof(unsigned char) * 2 * image->width;
+                    break;
+                case openni::PIXEL_FORMAT_SHIFT_9_3:
+                    image->encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+                    image->step = sizeof(unsigned char) * 2 * image->width;
+                    break;
+
+                case openni::PIXEL_FORMAT_RGB888:
+                    image->encoding = sensor_msgs::image_encodings::RGB8;
+                    image->step = sizeof(unsigned char) * 3 * image->width;
+                    break;
+                case openni::PIXEL_FORMAT_YUV422:
+                    image->encoding = sensor_msgs::image_encodings::YUV422;
+                    image->step = sizeof(unsigned char) * 4 * image->width;
+                    break;
+                case openni::PIXEL_FORMAT_GRAY8:
+                    image->encoding = sensor_msgs::image_encodings::MONO8;
+                    image->step = sizeof(unsigned char) * 1 * image->width;
+                    break;
+                case openni::PIXEL_FORMAT_GRAY16:
+                    image->encoding = sensor_msgs::image_encodings::MONO16;
+                    image->step = sizeof(unsigned char) * 2 * image->width;
+                    break;
+                case openni::PIXEL_FORMAT_JPEG:
+                default:
+                    ROS_ERROR("Invalid image encoding");
+                    break;
+            }
+
+            callback_(image);
+        }
+
     }
-
-    callback_(image);
-  }
-
-}
 
 }
 

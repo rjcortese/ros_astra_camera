@@ -35,9 +35,13 @@
  * serial number.
  */
 
-#include <iostream>
 #include "astra_camera/astra_device_manager.h"
 #include "astra_camera/astra_exception.h"
+
+/*rjc*/
+#include <memory>
+/*end rjc*/
+#include <iostream>
 
 using astra_wrapper::AstraDeviceManager;
 using astra_wrapper::AstraDeviceInfo;
@@ -45,22 +49,25 @@ using astra_wrapper::AstraException;
 
 int main(int arc, char** argv)
 {
-  astra_wrapper::AstraDeviceManager manager;
-  boost::shared_ptr<std::vector<astra_wrapper::AstraDeviceInfo> > device_infos = manager.getConnectedDeviceInfos();
-  std::cout << "Found " << device_infos->size() << " devices:" << std::endl << std::endl;
-  for (size_t i = 0; i < device_infos->size(); ++i)
-  {
-    std::cout << "Device #" << i << ":" << std::endl;
-    std::cout << device_infos->at(i) << std::endl;
-    try {
-      std::string serial = manager.getSerial(device_infos->at(i).uri_);
-      std::cout << "Serial number: " << serial << std::endl;
-    }
-    catch (const AstraException& exception)
+    astra_wrapper::AstraDeviceManager manager;
+    /*rjc*/
+    /* boost::shared_ptr<std::vector<astra_wrapper::AstraDeviceInfo> > device_infos = manager.getConnectedDeviceInfos(); */
+    std::shared_ptr<std::vector<astra_wrapper::AstraDeviceInfo> > device_infos = manager.getConnectedDeviceInfos();
+    /*end rjc*/
+    std::cout << "Found " << device_infos->size() << " devices:" << std::endl << std::endl;
+    for (size_t i = 0; i < device_infos->size(); ++i)
     {
-      std::cerr << "Could not retrieve serial number: " << exception.what() << std::endl;
+        std::cout << "Device #" << i << ":" << std::endl;
+        std::cout << device_infos->at(i) << std::endl;
+        try {
+            std::string serial = manager.getSerial(device_infos->at(i).uri_);
+            std::cout << "Serial number: " << serial << std::endl;
+        }
+        catch (const AstraException& exception)
+        {
+            std::cerr << "Could not retrieve serial number: " << exception.what() << std::endl;
+        }
     }
-  }
-  return 0;
+    return 0;
 }
 

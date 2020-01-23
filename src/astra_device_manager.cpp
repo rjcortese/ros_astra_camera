@@ -35,11 +35,13 @@
 #include "astra_camera/astra_device.h"
 #include "astra_camera/astra_exception.h"
 
-#include <boost/make_shared.hpp>
-
-//#include <ros/ros.h>
 #include "astra_camera/ros12_shim.h"
 
+/*rjc*/
+/* #include <boost/make_shared.hpp> */
+#include <memory>
+#include <mutex>
+/*end rjc*/
 #include <set>
 #include <string>
 
@@ -48,231 +50,282 @@
 namespace astra_wrapper
 {
 
-class AstraDeviceInfoComparator
-{
-public:
-  bool operator()(const AstraDeviceInfo& di1, const AstraDeviceInfo& di2)
-  {
-    return (di1.uri_.compare(di2.uri_) < 0);
-  }
-};
-
-typedef std::set<AstraDeviceInfo, AstraDeviceInfoComparator> DeviceSet;
-
-class AstraDeviceListener : public openni::OpenNI::DeviceConnectedListener,
-                             public openni::OpenNI::DeviceDisconnectedListener,
-                             public openni::OpenNI::DeviceStateChangedListener
-{
-public:
-  AstraDeviceListener() :
-      openni::OpenNI::DeviceConnectedListener(),
-      openni::OpenNI::DeviceDisconnectedListener(),
-      openni::OpenNI::DeviceStateChangedListener()
-  {
-    openni::OpenNI::addDeviceConnectedListener(this);
-    openni::OpenNI::addDeviceDisconnectedListener(this);
-    openni::OpenNI::addDeviceStateChangedListener(this);
-
-    // get list of currently connected devices
-    openni::Array<openni::DeviceInfo> device_info_list;
-    openni::OpenNI::enumerateDevices(&device_info_list);
-
-    for (int i = 0; i < device_info_list.getSize(); ++i)
+    class AstraDeviceInfoComparator
     {
-      onDeviceConnected(&device_info_list[i]);
-    }
-  }
+        public:
+            bool operator()(const AstraDeviceInfo& di1, const AstraDeviceInfo& di2)
+            {
+                return (di1.uri_.compare(di2.uri_) < 0);
+            }
+    };
 
-  ~AstraDeviceListener()
-  {
-    openni::OpenNI::removeDeviceConnectedListener(this);
-    openni::OpenNI::removeDeviceDisconnectedListener(this);
-    openni::OpenNI::removeDeviceStateChangedListener(this);
-  }
+    typedef std::set<AstraDeviceInfo, AstraDeviceInfoComparator> DeviceSet;
 
-  virtual void onDeviceStateChanged(const openni::DeviceInfo* pInfo, openni::DeviceState state)
-  {
-    ROS_INFO("Device \"%s\" error state changed to %d\n", pInfo->getUri(), state);
-
-    switch (state)
+    class AstraDeviceListener : public openni::OpenNI::DeviceConnectedListener,
+    public openni::OpenNI::DeviceDisconnectedListener,
+    public openni::OpenNI::DeviceStateChangedListener
     {
-      case openni::DEVICE_STATE_OK:
-        onDeviceConnected(pInfo);
-        break;
-      case openni::DEVICE_STATE_ERROR:
-      case openni::DEVICE_STATE_NOT_READY:
-      case openni::DEVICE_STATE_EOF:
-      default:
-        onDeviceDisconnected(pInfo);
-        break;
-    }
-  }
+        public:
+            AstraDeviceListener() :
+                openni::OpenNI::DeviceConnectedListener(),
+                openni::OpenNI::DeviceDisconnectedListener(),
+                openni::OpenNI::DeviceStateChangedListener()
+            {
+                openni::OpenNI::addDeviceConnectedListener(this);
+                openni::OpenNI::addDeviceDisconnectedListener(this);
+                openni::OpenNI::addDeviceStateChangedListener(this);
 
-  virtual void onDeviceConnected(const openni::DeviceInfo* pInfo)
-  {
-    boost::mutex::scoped_lock l(device_mutex_);
+                // get list of currently connected devices
+                openni::Array<openni::DeviceInfo> device_info_list;
+                openni::OpenNI::enumerateDevices(&device_info_list);
 
-    const AstraDeviceInfo device_info_wrapped = astra_convert(pInfo);
+                for (int i = 0; i < device_info_list.getSize(); ++i)
+                {
+                    onDeviceConnected(&device_info_list[i]);
+                }
+            }
 
-    ROS_INFO("Device \"%s\" found.", pInfo->getUri());
+            ~AstraDeviceListener()
+            {
+                openni::OpenNI::removeDeviceConnectedListener(this);
+                openni::OpenNI::removeDeviceDisconnectedListener(this);
+                openni::OpenNI::removeDeviceStateChangedListener(this);
+            }
 
-    // make sure it does not exist in set before inserting
-    device_set_.erase(device_info_wrapped);
-    device_set_.insert(device_info_wrapped);
-  }
+            virtual void onDeviceStateChanged(const openni::DeviceInfo* pInfo, openni::DeviceState state)
+            {
+                ROS_INFO("Device \"%s\" error state changed to %d\n", pInfo->getUri(), state);
+
+                switch (state)
+                {
+                    case openni::DEVICE_STATE_OK:
+                        onDeviceConnected(pInfo);
+                        break;
+                    case openni::DEVICE_STATE_ERROR:
+                    case openni::DEVICE_STATE_NOT_READY:
+                    case openni::DEVICE_STATE_EOF:
+                    default:
+                        onDeviceDisconnected(pInfo);
+                        break;
+                }
+            }
+
+            virtual void onDeviceConnected(const openni::DeviceInfo* pInfo)
+            {
+                /*rjc*/
+                /* boost::mutex::scoped_lock l(device_mutex_); */
+                std::unique_lock<std::mutex> l(device_mutex_);
+                /*end rjc*/
+
+                const AstraDeviceInfo device_info_wrapped = astra_convert(pInfo);
+
+                ROS_INFO("Device \"%s\" found.", pInfo->getUri());
+
+                // make sure it does not exist in set before inserting
+                device_set_.erase(device_info_wrapped);
+                device_set_.insert(device_info_wrapped);
+            }
 
 
-  virtual void onDeviceDisconnected(const openni::DeviceInfo* pInfo)
-  {
-    boost::mutex::scoped_lock l(device_mutex_);
+            virtual void onDeviceDisconnected(const openni::DeviceInfo* pInfo)
+            {
+                /*rjc*/
+                /* boost::mutex::scoped_lock l(device_mutex_); */
+                std::unique_lock<std::mutex> l(device_mutex_);
+                /*end rjc*/
 
-    ROS_WARN("Device \"%s\" disconnected\n", pInfo->getUri());
+                ROS_WARN("Device \"%s\" disconnected\n", pInfo->getUri());
 
-    const AstraDeviceInfo device_info_wrapped = astra_convert(pInfo);
-    device_set_.erase(device_info_wrapped);
-  }
+                const AstraDeviceInfo device_info_wrapped = astra_convert(pInfo);
+                device_set_.erase(device_info_wrapped);
+            }
 
-  boost::shared_ptr<std::vector<std::string> > getConnectedDeviceURIs()
-  {
-    boost::mutex::scoped_lock l(device_mutex_);
+            /*rjc*/
+            /* boost::shared_ptr<std::vector<std::string> > getConnectedDeviceURIs() */
+            std::shared_ptr<std::vector<std::string>> getConnectedDeviceURIs()
+            {
+                /* boost::mutex::scoped_lock l(device_mutex_); */
+                std::unique_lock<std::mutex> l(device_mutex_);
 
-    boost::shared_ptr<std::vector<std::string> > result = boost::make_shared<std::vector<std::string> >();
+                /* boost::shared_ptr<std::vector<std::string> > result = boost::make_shared<std::vector<std::string> >(); */
+                std::shared_ptr<std::vector<std::string>> result = std::make_shared<std::vector<std::string>>();
+            /*end rjc*/
 
-    result->reserve(device_set_.size());
+                result->reserve(device_set_.size());
 
-    std::set<AstraDeviceInfo, AstraDeviceInfoComparator>::const_iterator it;
-    std::set<AstraDeviceInfo, AstraDeviceInfoComparator>::const_iterator it_end = device_set_.end();
+                std::set<AstraDeviceInfo, AstraDeviceInfoComparator>::const_iterator it;
+                std::set<AstraDeviceInfo, AstraDeviceInfoComparator>::const_iterator it_end = device_set_.end();
 
-    for (it = device_set_.begin(); it != it_end; ++it)
-      result->push_back(it->uri_);
+                for (it = device_set_.begin(); it != it_end; ++it)
+                    result->push_back(it->uri_);
 
-    return result;
-  }
+                return result;
+            }
 
-  boost::shared_ptr<std::vector<AstraDeviceInfo> > getConnectedDeviceInfos()
-  {
-    boost::mutex::scoped_lock l(device_mutex_);
+            /*rjc*/
+            /* boost::shared_ptr<std::vector<AstraDeviceInfo> > getConnectedDeviceInfos() */
+            std::shared_ptr<std::vector<AstraDeviceInfo>> getConnectedDeviceInfos()
+            {
+                /* boost::mutex::scoped_lock l(device_mutex_); */
+                std::unique_lock<std::mutex> l(device_mutex_);
 
-    boost::shared_ptr<std::vector<AstraDeviceInfo> > result = boost::make_shared<std::vector<AstraDeviceInfo> >();
+                /* boost::shared_ptr<std::vector<AstraDeviceInfo> > result = boost::make_shared<std::vector<AstraDeviceInfo> >(); */
+                std::shared_ptr<std::vector<AstraDeviceInfo>> result = std::make_shared<std::vector<AstraDeviceInfo>>();
+            /*end rjc*/
 
-    result->reserve(device_set_.size());
+                result->reserve(device_set_.size());
 
-    DeviceSet::const_iterator it;
-    DeviceSet::const_iterator it_end = device_set_.end();
+                DeviceSet::const_iterator it;
+                DeviceSet::const_iterator it_end = device_set_.end();
 
-    for (it = device_set_.begin(); it != it_end; ++it)
-      result->push_back(*it);
+                for (it = device_set_.begin(); it != it_end; ++it)
+                    result->push_back(*it);
 
-    return result;
-  }
+                return result;
+            }
 
-  std::size_t getNumOfConnectedDevices()
-  {
-    boost::mutex::scoped_lock l(device_mutex_);
+            std::size_t getNumOfConnectedDevices()
+            {
+                /*rjc*/
+                /* boost::mutex::scoped_lock l(device_mutex_); */
+                std::unique_lock<std::mutex> l(device_mutex_);
+                /*end rjc*/
 
-    return device_set_.size();
-  }
+                return device_set_.size();
+            }
 
-  boost::mutex device_mutex_;
-  DeviceSet device_set_;
-};
+            /*rjc*/
+            /* boost::mutex device_mutex_; */
+            std::mutex device_mutex_;
+            /*end rjc*/
+            DeviceSet device_set_;
+    };
 
-//////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
 
-boost::shared_ptr<AstraDeviceManager> AstraDeviceManager::singelton_;
+    /*rjc*/
+    /* boost::shared_ptr<AstraDeviceManager> AstraDeviceManager::singelton_; */
+    std::shared_ptr<AstraDeviceManager> AstraDeviceManager::singelton_;
+    /*end rjc*/
 
-AstraDeviceManager::AstraDeviceManager()
-{
-  openni::Status rc = openni::OpenNI::initialize();
-  if (rc != openni::STATUS_OK)
-      THROW_OPENNI_EXCEPTION("Initialize failed\n%s\n", openni::OpenNI::getExtendedError());
-
-  device_listener_ = boost::make_shared<AstraDeviceListener>();
-}
-
-AstraDeviceManager::~AstraDeviceManager()
-{
-}
-
-boost::shared_ptr<AstraDeviceManager> AstraDeviceManager::getSingelton()
-{
-  if (singelton_.get()==0)
-    singelton_ = boost::make_shared<AstraDeviceManager>();
-
-  return singelton_;
-}
-
-boost::shared_ptr<std::vector<AstraDeviceInfo> > AstraDeviceManager::getConnectedDeviceInfos() const
-{
-return device_listener_->getConnectedDeviceInfos();
-}
-
-boost::shared_ptr<std::vector<std::string> > AstraDeviceManager::getConnectedDeviceURIs() const
-{
-  return device_listener_->getConnectedDeviceURIs();
-}
-
-std::size_t AstraDeviceManager::getNumOfConnectedDevices() const
-{
-  return device_listener_->getNumOfConnectedDevices();
-}
-
-std::string AstraDeviceManager::getSerial(const std::string& Uri) const
-{
-  openni::Device openni_device;
-  std::string ret;
-
-  // we need to open the device to query the serial number
-  if (Uri.length() > 0 && openni_device.open(Uri.c_str()) == openni::STATUS_OK)
-  {
-    int serial_len = 100;
-    char serial[serial_len];
-
-    openni::Status rc = openni_device.getProperty(openni::DEVICE_PROPERTY_SERIAL_NUMBER, serial, &serial_len);
-    if (rc == openni::STATUS_OK)
-      ret = serial;
-    else
+    AstraDeviceManager::AstraDeviceManager()
     {
-      THROW_OPENNI_EXCEPTION("Serial number query failed: %s", openni::OpenNI::getExtendedError());
+        openni::Status rc = openni::OpenNI::initialize();
+        if (rc != openni::STATUS_OK)
+            THROW_OPENNI_EXCEPTION("Initialize failed\n%s\n", openni::OpenNI::getExtendedError());
+
+        /*rjc*/
+        /* device_listener_ = boost::make_shared<AstraDeviceListener>(); */
+        device_listener_ = std::make_shared<AstraDeviceListener>();
+        /*end rjc*/
     }
-    // close the device again
-    openni_device.close();
-  }
-  else
-  {
-    //THROW_OPENNI_EXCEPTION("Device open failed: %s", openni::OpenNI::getExtendedError());
-  }
-  return ret;
-}
 
-boost::shared_ptr<AstraDevice> AstraDeviceManager::getAnyDevice()
-{
-  return boost::make_shared<AstraDevice>("");
-}
-boost::shared_ptr<AstraDevice> AstraDeviceManager::getDevice(const std::string& device_URI)
-{
-  return boost::make_shared<AstraDevice>(device_URI);
-}
+    AstraDeviceManager::~AstraDeviceManager()
+    {
+    }
+
+    /*rjc*/
+    /* boost::shared_ptr<AstraDeviceManager> AstraDeviceManager::getSingelton() */
+    std::shared_ptr<AstraDeviceManager> AstraDeviceManager::getSingelton()
+    /*end rjc*/
+    {
+        if (singelton_.get()==0)
+            /*rjc*/
+            /* singelton_ = boost::make_shared<AstraDeviceManager>(); */
+            singelton_ = std::make_shared<AstraDeviceManager>();
+            /*end rjc*/
+
+        return singelton_;
+    }
+
+    /*rjc*/
+    /* boost::shared_ptr<std::vector<AstraDeviceInfo> > AstraDeviceManager::getConnectedDeviceInfos() const */
+    std::shared_ptr<std::vector<AstraDeviceInfo>> AstraDeviceManager::getConnectedDeviceInfos() const
+    /*end rjc*/
+    {
+        return device_listener_->getConnectedDeviceInfos();
+    }
+
+    /*rjc*/
+    /* boost::shared_ptr<std::vector<std::string> > AstraDeviceManager::getConnectedDeviceURIs() const */
+    std::shared_ptr<std::vector<std::string>> AstraDeviceManager::getConnectedDeviceURIs() const
+    /*end rjc*/
+    {
+        return device_listener_->getConnectedDeviceURIs();
+    }
+
+    std::size_t AstraDeviceManager::getNumOfConnectedDevices() const
+    {
+        return device_listener_->getNumOfConnectedDevices();
+    }
+
+    std::string AstraDeviceManager::getSerial(const std::string& Uri) const
+    {
+        openni::Device openni_device;
+        std::string ret;
+
+        // we need to open the device to query the serial number
+        if (Uri.length() > 0 && openni_device.open(Uri.c_str()) == openni::STATUS_OK)
+        {
+            int serial_len = 100;
+            char serial[serial_len];
+
+            openni::Status rc = openni_device.getProperty(openni::DEVICE_PROPERTY_SERIAL_NUMBER, serial, &serial_len);
+            if (rc == openni::STATUS_OK)
+                ret = serial;
+            else
+            {
+                THROW_OPENNI_EXCEPTION("Serial number query failed: %s", openni::OpenNI::getExtendedError());
+            }
+            // close the device again
+            openni_device.close();
+        }
+        else
+        {
+            //THROW_OPENNI_EXCEPTION("Device open failed: %s", openni::OpenNI::getExtendedError());
+        }
+        return ret;
+    }
+
+    /*rjc*/
+    /* boost::shared_ptr<AstraDevice> AstraDeviceManager::getAnyDevice() */
+    std::shared_ptr<AstraDevice> AstraDeviceManager::getAnyDevice()
+    {
+        /* return boost::make_shared<AstraDevice>(""); */
+        return std::make_shared<AstraDevice>("");
+    /*end rjc*/
+    }
+
+    /*rjc*/
+    /* boost::shared_ptr<AstraDevice> AstraDeviceManager::getDevice(const std::string& device_URI) */
+    std::shared_ptr<AstraDevice> AstraDeviceManager::getDevice(const std::string& device_URI)
+    {
+        return std::make_shared<AstraDevice>(device_URI);
+    /*end rjc*/
+    }
 
 
-std::ostream& operator << (std::ostream& stream, const AstraDeviceManager& device_manager) {
+    std::ostream& operator << (std::ostream& stream, const AstraDeviceManager& device_manager) {
 
-  boost::shared_ptr<std::vector<AstraDeviceInfo> > device_info = device_manager.getConnectedDeviceInfos();
+        /*rjc*/
+        /* boost::shared_ptr<std::vector<AstraDeviceInfo> > device_info = device_manager.getConnectedDeviceInfos(); */
+        std::shared_ptr<std::vector<AstraDeviceInfo>> device_info = device_manager.getConnectedDeviceInfos();
+        /*end rjc*/
 
-  std::vector<AstraDeviceInfo>::const_iterator it;
-  std::vector<AstraDeviceInfo>::const_iterator it_end = device_info->end();
+        std::vector<AstraDeviceInfo>::const_iterator it;
+        std::vector<AstraDeviceInfo>::const_iterator it_end = device_info->end();
 
-  for (it = device_info->begin(); it != it_end; ++it)
-  {
-    stream << "Uri: " << it->uri_ << " (Vendor: " << it->vendor_ <<
-                                     ", Name: " << it->name_ <<
-                                     ", Vendor ID: " << it->vendor_id_ <<
-                                     ", Product ID: " << it->product_id_ <<
-                                      ")" << std::endl;
-  }
+        for (it = device_info->begin(); it != it_end; ++it)
+        {
+            stream << "Uri: " << it->uri_ << " (Vendor: " << it->vendor_ <<
+                ", Name: " << it->name_ <<
+                ", Vendor ID: " << it->vendor_id_ <<
+                ", Product ID: " << it->product_id_ <<
+                ")" << std::endl;
+        }
 
-  return stream;
-}
+        return stream;
+    }
 
 
 } //namespace openni2_wrapper

@@ -35,8 +35,10 @@
 
 #include "astra_camera/astra_device_info.h"
 
-#include <boost/thread/mutex.hpp>
-
+/*rjc*/
+/* #include <boost/thread/mutex.hpp> */
+#include <memory>
+/*end rjc*/
 #include <vector>
 #include <string>
 #include <ostream>
@@ -53,21 +55,34 @@ public:
   AstraDeviceManager();
   virtual ~AstraDeviceManager();
 
-  static boost::shared_ptr<AstraDeviceManager> getSingelton();
+  /*rjc*/
+  /* static boost::shared_ptr<AstraDeviceManager> getSingelton(); */
+  static std::shared_ptr<AstraDeviceManager> getSingelton();
 
-  boost::shared_ptr<std::vector<AstraDeviceInfo> > getConnectedDeviceInfos() const;
-  boost::shared_ptr<std::vector<std::string> > getConnectedDeviceURIs() const;
+  /* boost::shared_ptr<std::vector<AstraDeviceInfo> > getConnectedDeviceInfos() const; */
+  std::shared_ptr<std::vector<AstraDeviceInfo>> getConnectedDeviceInfos() const;
+  /* boost::shared_ptr<std::vector<std::string> > getConnectedDeviceURIs() const; */
+  std::shared_ptr<std::vector<std::string>> getConnectedDeviceURIs() const;
+  /*end rjc*/
   std::size_t getNumOfConnectedDevices() const;
 
-  boost::shared_ptr<AstraDevice> getAnyDevice();
-  boost::shared_ptr<AstraDevice> getDevice(const std::string& device_URI);
+  /*rjc*/
+  /* boost::shared_ptr<AstraDevice> getAnyDevice(); */
+  std::shared_ptr<AstraDevice> getAnyDevice();
+  /* boost::shared_ptr<AstraDevice> getDevice(const std::string& device_URI); */
+  std::shared_ptr<AstraDevice> getDevice(const std::string& device_URI);
+  /*end rjc*/
 
   std::string getSerial(const std::string& device_URI) const;
 
 protected:
-  boost::shared_ptr<AstraDeviceListener> device_listener_;
+  /*rjc*/
+  /* boost::shared_ptr<AstraDeviceListener> device_listener_; */
+  std::shared_ptr<AstraDeviceListener> device_listener_;
 
-  static boost::shared_ptr<AstraDeviceManager> singelton_;
+  /* static boost::shared_ptr<AstraDeviceManager> singelton_; */
+  static std::shared_ptr<AstraDeviceManager> singelton_;
+  /*end rjc*/
 };
 
 
