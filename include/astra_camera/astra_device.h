@@ -70,7 +70,7 @@ namespace astra_wrapper
     class AstraDevice
     {
         public:
-            AstraDevice(const std::string& device_URI) throw (AstraException);
+            AstraDevice(const std::string& device_URI);
             virtual ~AstraDevice();
 
             const std::string getUri() const;
@@ -102,12 +102,12 @@ namespace astra_wrapper
             bool isDepthStreamStarted();
 
             bool isImageRegistrationModeSupported() const;
-            void setImageRegistrationMode(bool enabled) throw (AstraException);
-            void setDepthColorSync(bool enabled) throw (AstraException);
+            void setImageRegistrationMode(bool enabled);
+            void setDepthColorSync(bool enabled);
 
-            const AstraVideoMode getIRVideoMode() throw (AstraException);
-            const AstraVideoMode getColorVideoMode() throw (AstraException);
-            const AstraVideoMode getDepthVideoMode() throw (AstraException);
+            const AstraVideoMode getIRVideoMode();
+            const AstraVideoMode getColorVideoMode();
+            const AstraVideoMode getDepthVideoMode();
 
             const std::vector<AstraVideoMode>& getSupportedIRVideoModes() const;
             const std::vector<AstraVideoMode>& getSupportedColorVideoModes() const;
@@ -117,9 +117,9 @@ namespace astra_wrapper
             bool isColorVideoModeSupported(const AstraVideoMode& video_mode) const;
             bool isDepthVideoModeSupported(const AstraVideoMode& video_mode) const;
 
-            void setIRVideoMode(const AstraVideoMode& video_mode) throw (AstraException);
-            void setColorVideoMode(const AstraVideoMode& video_mode) throw (AstraException);
-            void setDepthVideoMode(const AstraVideoMode& video_mode) throw (AstraException);
+            void setIRVideoMode(const AstraVideoMode& video_mode);
+            void setColorVideoMode(const AstraVideoMode& video_mode);
+            void setDepthVideoMode(const AstraVideoMode& video_mode);
 
             void setIRFrameCallback(FrameCallbackFunction callback);
             void setColorFrameCallback(FrameCallbackFunction callback);
@@ -129,8 +129,8 @@ namespace astra_wrapper
             float getColorFocalLength (int output_y_resolution) const;
             float getDepthFocalLength (int output_y_resolution) const;
 
-            void setAutoExposure(bool enable) throw (AstraException);
-            void setAutoWhiteBalance(bool enable) throw (AstraException);
+            void setAutoExposure(bool enable);
+            void setAutoWhiteBalance(bool enable);
 
             bool getAutoExposure() const;
             bool getAutoWhiteBalance() const;
@@ -156,9 +156,9 @@ namespace astra_wrapper
             /* mutable boost::shared_ptr<openni::VideoStream> color_video_stream_; */
             /* mutable boost::shared_ptr<openni::VideoStream> depth_video_stream_; */
 
-            std::shared_ptr<openni::VideoStream> getIRVideoStream() const throw (AstraException);
-            std::shared_ptr<openni::VideoStream> getColorVideoStream() const throw (AstraException);
-            std::shared_ptr<openni::VideoStream> getDepthVideoStream() const throw (AstraException);
+            std::shared_ptr<openni::VideoStream> getIRVideoStream() const;
+            std::shared_ptr<openni::VideoStream> getColorVideoStream() const;
+            std::shared_ptr<openni::VideoStream> getDepthVideoStream() const;
 
             std::shared_ptr<openni::Device> openni_device_;
             std::shared_ptr<openni::DeviceInfo> device_info_;

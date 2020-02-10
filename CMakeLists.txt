@@ -7,16 +7,15 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra)
-  add_compile_options(-Wno-deprecated)
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rmw_implementation_cmake REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system thread)
 
 option(FILTER "OB Filter library" ON)
 
@@ -47,17 +46,20 @@ ExternalProject_Add(astra_openni2
   INSTALL_DIR openni2
   INSTALL_COMMAND tar -xjf <SOURCE_DIR>/Packaging/Final/OpenNI-Linux-2.3.tar.bz2 -C <INSTALL_DIR> --strip 1 && mkdir -p <INSTALL_DIR>/include && ln -fs <INSTALL_DIR>/Include <INSTALL_DIR>/include/openni2
   PATCH_COMMAND
-    ${patch_exe} -p1 -N < ${CMAKE_CURRENT_SOURCE_DIR}/astra_openni2-patch.diff
-
+  ${patch_exe} -p1 -N < ${CMAKE_CURRENT_SOURCE_DIR}/astra_openni2-patch.diff
 )
 
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/openni2/Redist)
 include_directories(include
-                    ${Boost_INCLUDE_DIRS}
-                    ${CMAKE_CURRENT_BINARY_DIR}/openni2/include
-                    )
+  ${CMAKE_CURRENT_BINARY_DIR}/openni2/include
+)
 
-add_library(astra_wrapper
+
+set(node_plugins "")
+
+
+add_library(astra_driver_component SHARED
+  src/astra_driver.cpp
    src/astra_convert.cpp
    src/astra_device.cpp
    src/astra_device_info.cpp
@@ -67,38 +69,59 @@ add_library(astra_wrapper
    src/astra_exception.cpp
    src/astra_video_mode.cpp
 )
-ament_target_dependencies(astra_wrapper
+target_compile_definitions(astra_driver_component
+  PRIVATE "COMPOSITION_BUILDING_DLL"
+)
+ament_target_dependencies(astra_driver_component
   "builtin_interfaces"
   "rclcpp"
+  "rclcpp_components"
   "sensor_msgs"
 )
-target_link_libraries(astra_wrapper -lOpenNI2Orbbec ${Boost_LIBRARIES})
-add_dependencies(astra_wrapper astra_openni2)
+target_link_libraries(astra_driver_component
+  -lOpenNI2Orbbec
+)
+add_dependencies(astra_driver_component
+  astra_openni2
+)
+rclcpp_components_register_nodes(astra_driver_component
+  "astra_wrapper::AstraDriver"
+)
+set(node_plugins
+  "${node_plugins}astra_wrapper::AstraDriver;$<TARGET_FILE:astra_driver_component>\n"
+)
 
-add_library(astra_driver_lib src/astra_driver.cpp)
-ament_target_dependencies(astra_driver_lib
-  "builtin_interfaces"
+
+if(NOT WIN32)
+  ament_environment_hooks(
+    "${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH}")
+endif()
+
+
+add_executable(astra_man_comp_alt
+  ros/astra_man_comp_alt.cpp
+)
+target_link_libraries(astra_man_comp_alt
+  astra_driver_component
+)
+ament_target_dependencies(astra_man_comp_alt
   "rclcpp"
-  "sensor_msgs"
 )
-target_link_libraries(astra_driver_lib astra_wrapper ${Boost_LIBRARIES})
-add_dependencies(astra_driver_lib astra_openni2)
+  
 
-add_executable(astra_camera_node
-   ros/astra_camera_node.cpp
-)
-target_link_libraries(astra_camera_node astra_driver_lib)
-add_dependencies(astra_camera_node astra_openni2)
-
-install(TARGETS astra_camera_node
-  DESTINATION lib/${PROJECT_NAME}
-)
-
-install(TARGETS astra_wrapper astra_driver_lib
+install(TARGETS
+  astra_driver_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
+
+
+install(TARGETS
+  astra_man_comp_alt
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 
 install(FILES ${CMAKE_BINARY_DIR}/openni2/Redist/libOpenNI2Orbbec.so
   DESTINATION lib
@@ -120,6 +143,5 @@ install(PROGRAMS scripts/create_udev_rules
   DESTINATION lib/${PROJECT_NAME}
 )
 
-ament_export_include_directories(include)
-ament_export_libraries(astra_driver_lib astra_wrapper)
+# ament_export_include_directories(include)
 ament_package()

@@ -1,54 +1,14 @@
-/*
- * Copyright (c) 2013, Willow Garage, Inc.
- * Copyright (c) 2016, Orbbec Ltd.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the Willow Garage, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived from
- *       this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- *      Author: Tim Liu (liuhua@orbbec.com)
- */
-
-#ifndef ASTRA_DRIVER_H
-#define ASTRA_DRIVER_H
-
-/*rjc*/
-/* #include <boost/shared_ptr.hpp> */
-/* #include <boost/cstdint.hpp> */
-/* #include <boost/bind.hpp> */
-/* #include <boost/function.hpp> */
+#ifndef ASTRA_WRAPPER__ASTRA_DRIVER_HPP_
+#define ASTRA_WRAPPER__ASTRA_DRIVER_HPP_
 
 #include <memory>
 #include <mutex>
-/*end rjc*/
+#include <string>
+#include <vector>
 
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <builtin_interfaces/msg/time.hpp>
-
-#include <string>
-#include <vector>
 
 #include "astra_camera/astra_device_manager.h"
 #include "astra_camera/astra_device.h"
@@ -56,16 +16,14 @@
 
 #include <rcl/time.h>
 #include <rclcpp/rclcpp.hpp>
-#include "astra_camera/ros12_shim.h"
 
 namespace astra_wrapper
 {
 
-    class AstraDriver
+    class AstraDriver : public rclcpp::Node
     {
         public:
-            AstraDriver(rclcpp::Node::SharedPtr& n, rclcpp::Node::SharedPtr& pnh, size_t width, size_t height, double framerate,
-                    size_t dwidth, size_t dheight, double dframerate, PixelFormat dformat);
+            explicit AstraDriver(const rclcpp::NodeOptions & options);
 
         private:
             void newIRFrameCallback(sensor_msgs::msg::Image::SharedPtr image);
@@ -78,10 +36,8 @@ namespace astra_wrapper
             sensor_msgs::msg::CameraInfo::SharedPtr getIRCameraInfo(int width, int height, builtin_interfaces::msg::Time time) const;
             sensor_msgs::msg::CameraInfo::SharedPtr getDepthCameraInfo(int width, int height, builtin_interfaces::msg::Time time) const;
 
-            void readConfigFromParameterServer();
-
             // resolves non-URI device IDs to URIs, e.g. '#1' is resolved to the URI of the first device
-            std::string resolveDeviceURI(const std::string& device_id) throw(AstraException);
+            std::string resolveDeviceURI(const std::string& device_id);
             void initDevice();
 
             void advertiseROSTopics();
@@ -104,25 +60,16 @@ namespace astra_wrapper
             void setColorVideoMode(const AstraVideoMode& color_video_mode);
             void setDepthVideoMode(const AstraVideoMode& depth_video_mode);
 
-            rclcpp::Node::SharedPtr nh_;
-            rclcpp::Node::SharedPtr pnh_;
-
-            /*rjc*/
-            /* boost::shared_ptr<AstraDeviceManager> device_manager_; */
-            /* boost::shared_ptr<AstraDevice> device_; */
             std::shared_ptr<AstraDeviceManager> device_manager_;
             std::shared_ptr<AstraDevice> device_;
-            /*end rjc*/
 
             std::string device_id_;
 
             bool config_init_;
 
             std::set<std::string>  alreadyOpen;
-            /*rjc*/
-            /* boost::mutex connect_mutex_; */
             std::mutex connect_mutex_;
-            /*end rjc*/
+
             // published topics
             rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_depth_raw_;
             rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_color_;
@@ -177,6 +124,6 @@ namespace astra_wrapper
             bool can_publish_depth_;
     };
 
-}
+} // namespace astra_wrapper
 
 #endif

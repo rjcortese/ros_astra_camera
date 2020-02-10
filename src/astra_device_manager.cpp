@@ -268,7 +268,7 @@ namespace astra_wrapper
         if (Uri.length() > 0 && openni_device.open(Uri.c_str()) == openni::STATUS_OK)
         {
             int serial_len = 100;
-            char serial[serial_len];
+            char serial[100];
 
             openni::Status rc = openni_device.getProperty(openni::DEVICE_PROPERTY_SERIAL_NUMBER, serial, &serial_len);
             if (rc == openni::STATUS_OK)

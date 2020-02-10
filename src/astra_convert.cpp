@@ -33,10 +33,6 @@
 #include "astra_camera/astra_convert.h"
 #include "astra_camera/astra_exception.h"
 
-/*rjc*/
-/* #include <boost/make_shared.hpp> */
-/*end rjc*/
-
 #include <string>
 
 namespace astra_wrapper
@@ -45,7 +41,7 @@ namespace astra_wrapper
     const AstraDeviceInfo astra_convert(const openni::DeviceInfo* pInfo)
     {
         if (!pInfo)
-            THROW_OPENNI_EXCEPTION("astra_convert called with zero pointer\n");
+            THROW_OPENNI_EXCEPTION("astra_convert called with zero pointer%s", "\n");
 
         AstraDeviceInfo output;
 

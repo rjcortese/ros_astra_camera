@@ -35,6 +35,7 @@
 
 #include <cstddef>
 #include <ostream>
+#include <map>
 
 namespace astra_wrapper
 {
@@ -55,6 +56,19 @@ typedef enum
         PIXEL_FORMAT_GRAY16 = 203,
         PIXEL_FORMAT_JPEG = 204,
 } PixelFormat;
+
+static std::map<std::string, PixelFormat> mapStringToPixelFormat =
+{
+    { "PIXEL_FORMAT_DEPTH_1_MM", PIXEL_FORMAT_DEPTH_1_MM },
+    { "PIXEL_FORMAT_DEPTH_100_UM", PIXEL_FORMAT_DEPTH_100_UM },
+    { "PIXEL_FORMAT_SHIFT_9_2", PIXEL_FORMAT_SHIFT_9_2 },
+    { "PIXEL_FORMAT_SHIFT_9_3",  PIXEL_FORMAT_SHIFT_9_3 },
+    { "PIXEL_FORMAT_RGB888", PIXEL_FORMAT_RGB888 },
+    { "PIXEL_FORMAT_YUV422", PIXEL_FORMAT_YUV422 },
+    { "PIXEL_FORMAT_GRAY8", PIXEL_FORMAT_GRAY8 },
+    { "PIXEL_FORMAT_GRAY16", PIXEL_FORMAT_GRAY16 },
+    {"PIXEL_FORMAT_JPEG", PIXEL_FORMAT_JPEG }
+};
 
 struct AstraVideoMode
 {
